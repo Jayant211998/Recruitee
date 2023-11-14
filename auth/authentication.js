@@ -56,7 +56,7 @@ exports.login = async(req, res) => {
             res.status(404).send({message: "User not found"});
         }
     }catch(err){
-        res.status(500).send({message: "Internal server error"});
+        res.status(500).send({message: `Internal server error ${err}`});
     }
 }
 
@@ -110,6 +110,8 @@ exports.postCompanies = async(req, res) => {
                 company_id: companyID,
                 name: req.body.company,
                 website: req.body.website,
+                address: req.body.address,
+                description: req.body.description,
                 owner: {
                     name: req.user.username,
                     email: req.user.email, 
@@ -125,5 +127,17 @@ exports.postCompanies = async(req, res) => {
         }        
     }catch(err){
         res.status(500).send({message: "Internal server error"});
+    }
+}
+
+exports.verifyCompany = async(req, res, next) => {
+    const db = getDB();
+    const existingCompany = await db.collection('Companies').findOne({company_id: parseInt(req.params.company_id)});
+    if(!existingCompany){
+        res.status(404).send({message: "Company not found"});
+    }else if(existingCompany.owner.id!== req.user.user_id){
+        res.status(401).send({message: "You are not authorized to perform this action"});
+    }else{
+        next();
     }
 }

@@ -1,6 +1,10 @@
-const e = require('express');
-
 const getDB = require('../mongo-connect.js').getDB;
+const { ref, uploadBytesResumable, getDownloadURL } = require('firebase/storage');
+
+const { initializeApp } = require('firebase/app');
+const { configuration } = require('../config/firebase_config.js');
+
+initializeApp(configuration);
 
 exports.getCandidates = async(req, res) => {
    try {
@@ -25,7 +29,8 @@ exports.postCandidates = async(req, res) => {
                     phone: req.body.phone,
                     links: req.body.links,
                     resume: null,
-                    cover_letter: null
+                    cover_letter: null,
+                    image: null
                 },
                 offers:[],
                 created_at: new Date(),
@@ -94,6 +99,93 @@ exports.deleteCandidate = async(req, res) => {
         res.status(500).send({message: `Internal Server Error! ${err}`});
     }
 }
-exports.uploadDocuments = async(req, res) => {
-    
+exports.uploadResume = async( req, res, storage )=>{
+    try{
+        const storageRef = ref(storage, `files/${req.params.id}/resume/${req.file.originalname}`)
+        const metadata = {
+            contentType: req.file.mimetype
+        }
+        const snapshot = await uploadBytesResumable(storageRef, req.file.buffer, metadata);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+
+        const db = getDB();
+        const candidate = await db.collection('Candidates').findOne({'data.candidate_id': parseInt(req.params.id)});
+
+        if(!candidate){
+            res.status(404).send({message: "Candidate not found!"});
+        }else{
+            db.collection('Candidates').updateOne({'data.candidate_id': parseInt(req.params.id)},{
+                $set: {
+                    data:{
+                       ...candidate.data,
+                        candidate_info:{...candidate.data.candidate_info, resume: downloadUrl},
+                        updated_at: new Date()
+                    }
+                }
+            });
+            res.status(200).send({message: "Resume uploaded"})
+        }
+    }catch(err){
+        res.status(500).send({ "message": `Internal Server Error! ${err}`});
+    }
+}
+exports.uploadCoverLetter = async( req, res, storage )=>{
+    try{
+        const storageRef = ref(storage, `files/${req.params.id}/cover_letter/${req.file.originalname}`)
+        const metadata = {
+            contentType: req.file.mimetype
+        }
+        const snapshot = await uploadBytesResumable(storageRef, req.file.buffer, metadata);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+
+        const db = getDB();
+        const candidate = await db.collection('Candidates').findOne({'data.candidate_id': parseInt(req.params.id)});
+
+        if(!candidate){
+            res.status(404).send({message: "Candidate not found!"});
+        }else{
+            db.collection('Candidates').updateOne({'data.candidate_id': parseInt(req.params.id)},{
+                $set: {
+                    data:{
+                       ...candidate.data,
+                        candidate_info:{...candidate.data.candidate_info, cover_letter: downloadUrl},
+                        updated_at: new Date()
+                    }
+                }
+            });
+            res.status(200).send({message: "Cover Letter uploaded"})
+        }
+    }catch(err){
+        res.status(500).send({ "message": `Internal Server Error! ${err}`});
+    }
+}
+exports.uploadImage = async( req, res, storage )=>{
+    try{
+        const storageRef = ref(storage, `files/${req.params.id}/image/${req.file.originalname}`)
+        const metadata = {
+            contentType: req.file.mimetype
+        }
+        const snapshot = await uploadBytesResumable(storageRef, req.file.buffer, metadata);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+
+        const db = getDB();
+        const candidate = await db.collection('Candidates').findOne({'data.candidate_id': parseInt(req.params.id)});
+
+        if(!candidate){
+            res.status(404).send({message: "Candidate not found!"});
+        }else{
+            db.collection('Candidates').updateOne({'data.candidate_id': parseInt(req.params.id)},{
+                $set: {
+                    data:{
+                       ...candidate.data,
+                        candidate_info:{...candidate.data.candidate_info, image: downloadUrl},
+                        updated_at: new Date()
+                    }
+                }
+            });
+            res.status(200).send({message: "Image uploaded"})
+        }
+    }catch(err){
+        res.status(500).send({ "message": `Internal Server Error! ${err}`});
+    }
 }
