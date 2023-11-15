@@ -8,7 +8,8 @@ exports.postJobs = async(req, res) => {
                 job_id: jobID,
                 company_id: req.params.company_id,
                 jobs_info:{...req.body},
-                Jobs_applied: [],
+                candidate_applied_info: [],
+                candidates_applied: 0,
                 created_at: new Date(),
                 updated_at: new Date()
             };

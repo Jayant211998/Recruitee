@@ -5,6 +5,7 @@ const { mongoConnect } = require('./mongo-connect.js');
 const auth = require('./auth/authentication.js');
 const candidate = require('./candidates/candidates.js');
 const jobs = require('./jobs/jobs.js');
+const apply = require('./jobs/apply.js');
 
 const app = express();
 
@@ -50,6 +51,11 @@ app.get('/jobs/:company_id', auth.verifyToken, auth.verifyCompany, jobs.getJobs)
 app.get('/jobs/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.getJobById);
 app.put('/jobs/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.updateJobById);
 app.delete('/jobs/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.deleteJob);
+
+
+// Job Application
+app.put('/jobs/:company_id/job/:job_id/candidate/:candidate_id/apply', auth.verifyToken, auth.verifyCompany, apply.applyJob);
+
 
 mongoConnect(()=>{
     app.listen(8000, ()=>{

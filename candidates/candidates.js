@@ -32,6 +32,7 @@ exports.postCandidates = async(req, res) => {
                     cover_letter: null,
                     image: null
                 },
+                offers_applied: 0,
                 offers:[],
                 created_at: new Date(),
                 updated_at: new Date()
