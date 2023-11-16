@@ -46,15 +46,19 @@ app.post('/upload_image/:id', auth.verifyToken, upload.single('file'),( req, res
 
 
 // Job openings
-app.post('/jobs/:company_id', auth.verifyToken, auth.verifyCompany,jobs.postJobs);
-app.get('/jobs/:company_id', auth.verifyToken, auth.verifyCompany, jobs.getJobs);
-app.get('/jobs/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.getJobById);
-app.put('/jobs/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.updateJobById);
-app.delete('/jobs/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.deleteJob);
+app.post('/company/:company_id', auth.verifyToken, auth.verifyCompany,jobs.postJobs);
+app.get('/company/:company_id', auth.verifyToken, auth.verifyCompany, jobs.getJobs);
+app.get('/company/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.getJobById);
+app.put('/company/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.updateJobById);
+app.delete('/company/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.deleteJob);
 
 
 // Job Application
-app.put('/jobs/:company_id/job/:job_id/candidate/:candidate_id/apply', auth.verifyToken, auth.verifyCompany, apply.applyJob);
+app.put('/company/:company_id/job/:job_id/candidate/:candidate_id/apply', auth.verifyToken, auth.verifyCompany, apply.apply);
+app.get('/company/:company_id/job/:job_id/apply', auth.verifyToken, auth.verifyCompany, apply.applyCandidate);
+app.get('/company/:company_id/candidate/:candidate_id/apply', auth.verifyToken, auth.verifyCompany, apply.applyJob);
+app.put('/company/:company_id/job/:job_id/candidate/:candidate_id/promote', auth.verifyToken, auth.verifyCompany, apply.promote);
+app.put('/company/:company_id/job/:job_id/candidate/:candidate_id/reject', auth.verifyToken, auth.verifyCompany, apply.reject);
 
 
 mongoConnect(()=>{

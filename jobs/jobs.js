@@ -7,7 +7,7 @@ exports.postJobs = async(req, res) => {
             const data = {
                 job_id: jobID,
                 company_id: req.params.company_id,
-                jobs_info:{...req.body},
+                jobs_info:{...req.body, hired: 0},
                 candidate_applied_info: [],
                 candidates_applied: 0,
                 created_at: new Date(),
