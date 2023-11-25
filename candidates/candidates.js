@@ -18,7 +18,7 @@ exports.getCandidates = async(req, res) => {
 exports.postCandidates = async(req, res) => {
     try{
         const db = getDB();
-        const existingCandidate = await db.collection('Candidates').findOne({'data.candidate.email': req.body.email});
+        const existingCandidate = await db.collection('Candidates').findOne({'data.candidate_info.email': req.body.email});
         if(!existingCandidate){
             const candidateID = Math.floor(100000 + Math.random() * 90000000);
             const data = {
@@ -32,8 +32,6 @@ exports.postCandidates = async(req, res) => {
                     cover_letter: null,
                     image: null
                 },
-                offers_applied: 0,
-                offers:[],
                 created_at: new Date(),
                 updated_at: new Date()
             };

@@ -1,4 +1,6 @@
 const getDB = require('../mongo-connect.js').getDB;
+const { getQuery } = require('./utils.js');
+
 
 exports.postJobs = async(req, res) => {
     try{
@@ -7,9 +9,8 @@ exports.postJobs = async(req, res) => {
             const data = {
                 job_id: jobID,
                 company_id: req.params.company_id,
+                status: "Open",
                 jobs_info:{...req.body, hired: 0},
-                candidate_applied_info: [],
-                candidates_applied: 0,
                 created_at: new Date(),
                 updated_at: new Date()
             };
@@ -23,7 +24,8 @@ exports.postJobs = async(req, res) => {
 exports.getJobs = async(req, res) => {
     try {
         const db = getDB();
-        const jobs = await db.collection('Jobs').find({}).toArray();
+        const query = getQuery(req.query)
+        const jobs = await db.collection('Jobs').find({'data.company_id': req.params.company_id, ...query}).toArray();
         res.status(200).send({message: "All jobs retrieved successfully", jobs: jobs});
     }catch(err){
         res.status(500).send({message: `Internal Server Error! ${err}`});

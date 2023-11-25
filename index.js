@@ -27,12 +27,15 @@ app.use(function (req, res, next) {
 }); 
 
 
+// app.delete('/clear', apply.clear);
+
 app.post('/register', auth.register);
 app.post('/login', auth.login);
 app.get('/logout', auth.logout);
 app.get('/admin', auth.verifyToken, auth.admin);
 app.get('/companies', auth.verifyToken, auth.getCompanies);
 app.post('/companies', auth.verifyToken, auth.postCompanies);
+
 
 //Candidates
 app.get('/candidates', auth.verifyToken, candidate.getCandidates);
@@ -54,11 +57,11 @@ app.delete('/company/:company_id/job/:job_id', auth.verifyToken, auth.verifyComp
 
 
 // Job Application
-app.put('/company/:company_id/job/:job_id/candidate/:candidate_id/apply', auth.verifyToken, auth.verifyCompany, apply.apply);
-app.get('/company/:company_id/job/:job_id/apply', auth.verifyToken, auth.verifyCompany, apply.applyCandidate);
-app.get('/company/:company_id/candidate/:candidate_id/apply', auth.verifyToken, auth.verifyCompany, apply.applyJob);
-app.put('/company/:company_id/job/:job_id/candidate/:candidate_id/promote', auth.verifyToken, auth.verifyCompany, apply.promote);
-app.put('/company/:company_id/job/:job_id/candidate/:candidate_id/reject', auth.verifyToken, auth.verifyCompany, apply.reject);
+app.post('/company/:company_id/job/:job_id/candidate/:candidate_id/apply', auth.verifyToken, auth.verifyCompany, apply.apply);
+app.get('/company/:company_id/job/:job_id/apply_info', auth.verifyToken, auth.verifyCompany, apply.applyJobInfo);
+app.get('/company/:company_id/candidate/:candidate_id/apply_info', auth.verifyToken, auth.verifyCompany, apply.applyCandidateInfo);
+app.put('/company/:company_id/application/:application_id/promote', auth.verifyToken, auth.verifyCompany, apply.promote);
+app.put('/company/:company_id/application/:application_id/reject', auth.verifyToken, auth.verifyCompany, apply.reject);
 
 
 mongoConnect(()=>{

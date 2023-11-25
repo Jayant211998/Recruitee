@@ -1,6 +1,6 @@
 const getDB = require('../mongo-connect.js').getDB;
 
-const { updateJobStatus, updateCandidateStatus, countHiredCandidate,rejectJobStatus, rejectCandidateStatus } = require('./utils.js');
+const { updateStatus, countHiredCandidate,rejectJobStatus, rejectCandidateStatus } = require('./utils.js');
 
 exports.apply = async(req, res) => {
     try{
@@ -13,55 +13,28 @@ exports.apply = async(req, res) => {
             if(!job){
                 res.status(404).send({message: "Job not found. Please check job ID."});
             }else{
-                const job_applied = candidate.data.offers.find(jobApplied => jobApplied.job_id === parseInt(req.params.job_id));
-                const allHired = job.data.jobs_info.hired === job.data.jobs_info.number_of_openings;
-                if(!job_applied){
-                    res.status(404).send({message: "Candidate has not applied for this job."});
-                }else if(allHired){
+                const job_applied = await db.collection('Application').findOne({job_id: parseInt(req.params.job_id), candidate_id: parseInt(req.params.candidate_id)});
+                if(job_applied){
+                    res.status(404).send({message: "Candidate has already applied for this job."});
+                }else if ( job.data.status === "Closed" ) {
                     res.status(404).send({message: "Hiring process is finished for this job."});
                 }else{
-                    const updated_job = await db.collection('Jobs').updateOne(
-                        {'data.job_id': parseInt(req.params.job_id)},
-                        {$set: {
-                            ...job,
-                            data:{
-                                ...job.data,
-                                candidate_applied_info: [
-                                    ...job.data.candidate_applied_info,
-                                    {
-                                        candidate_id: candidate.data.candidate_id,
-                                        candidate_info: candidate.data.candidate_info,  
-                                        stage: "Applied"
-                                    }
-                                ],
-                                candidates_applied: job.data.candidates_applied + 1,
-                                updated_at: new Date()
-                            }
-                        }}
-                    );
-                    const updated_candidate = await db.collection('Candidates').updateOne(
-                        {'data.candidate_id': parseInt(req.params.candidate_id)},{
-                            $set: {
-                                ...candidate,
-                                data:{
-                                    ...candidate.data,
-                                    offers_applied: candidate.data.offers_applied + 1,
-                                    offers: [
-                                        ...candidate.data.offers,
-                                        {
-                                            jobs_info: job.data.jobs_info,
-                                            _id: job._id,
-                                            job_id: job.data.job_id,
-                                            company_id: job.data.company_id,                       
-                                            status: "Applied"
-                                        }
-                                    ],
-                                    updated_at: new Date()
-                                }
-                            }
-                        }
-                    );
-                    res.status(200).send({message: "Candidate applied for job successfully.", job: updated_job, candidate: updated_candidate});
+                    const application_id = Math.floor(100000 + Math.random() * 90000000);
+                    const job_application = await db.collection('Application').insertOne({
+                        job_application_id: application_id,
+                        company_id: job.data.company_id,
+                        job_id: parseInt(req.params.job_id),
+                        job_title: job.data.jobs_info.title,
+                        candidates_hired: job.data.jobs_info.hired,
+                        number_of_openings: job.data.jobs_info.number_of_openings,
+                        candidate_id: parseInt(req.params.candidate_id),
+                        candidate_email: candidate.data.candidate_info.email,
+                        candidate_name: candidate.data.candidate_info.name,
+                        stage: 'Applied',
+                        created_at: new Date(),
+                        updated_at: new Date()
+                    })
+                    res.status(200).send({message: "Candidate applied for job successfully.", job_application_id: application_id ,job_application_data: job_application});
                 }
             }  
         }
@@ -70,28 +43,28 @@ exports.apply = async(req, res) => {
     }       
 }
 
-exports.applyJob = async(req, res) => {
+exports.applyJobInfo = async(req, res) => {
     try{
         const db = getDB();
-        const candidate = await db.collection('Candidates').findOne({'data.candidate_id': parseInt(req.params.candidate_id)});
-        if(!candidate){
-            res.status(404).send({message: "Candidate not found. Please check candidate ID."});
+        const candidates = await db.collection('Application').find({job_id: parseInt(req.params.job_id)}).toArray();
+        if(candidates.length === 0){
+            res.status(404).send({message: "No candidate applied for this job. Please check job ID."});
         }else{
-            res.status(200).send({ candidate: candidate.data.offers});
+            res.status(200).send({ job_application_information: candidates });
         }
     }catch(err){
         res.status(500).send(`Internal Server Error ${err}`);
     }
 }
 
-exports.applyCandidate = async(req, res) => {
+exports.applyCandidateInfo = async(req, res) => {
     try{
         const db = getDB();
-        const job = await db.collection('Jobs').findOne({'data.job_id': parseInt(req.params.job_id)});
-        if(!job){
-            res.status(404).send({message: "Job not found. Please check job ID."});
+        const jobs = await db.collection('Application').find({candidate_id: parseInt(req.params.candidate_id)}).toArray();
+        if(jobs.length === 0){
+            res.status(404).send({message: "Candidate not found. Please check candidate ID."});
         }else{
-            res.status(200).send({ jobs: job.data.candidate_applied_info});
+            res.status(200).send({ job_application_information: jobs });
         }
     }catch(err){
         res.status(500).send(`Internal Server Error ${err}`);
@@ -101,51 +74,58 @@ exports.applyCandidate = async(req, res) => {
 exports.promote = async(req, res) => {
     try{
         const db = getDB();
-        const candidate = await db.collection('Candidates').findOne({'data.candidate_id': parseInt(req.params.candidate_id)});
-        if(!candidate){
-            res.status(404).send({message: "Candidate not found. Please check candidate ID."});
-        }else{
-            const job = await db.collection('Jobs').findOne({'data.job_id': parseInt(req.params.job_id)});
-            if(!job){
-                res.status(404).send({message: "Job not found. Please check job ID."});
+        const application = await db.collection('Application').findOne({job_application_id: parseInt(req.params.application_id)});
+        const job = await db.collection('Jobs').findOne({ 'data.job_id': application.job_id });
+        if(!application){
+            res.status(404).send({message: "Application not found. Please check application ID."});
+        }else if(application.stage === "Rejected"){
+            res.status(404).send({message: "Rejected candidates can not be promoted"});
+        }else if(application.stage === "Hired"){
+            res.status(404).send({message: "You have already hired the candidate."});
+        }else if(job.data.status === "Closed"){
+            res.status(404).send({message: "Hiring process is finished for this job."});
+        }else {
+            if(application.stage === "Offer" && application.candidates_hired + 1 === application.number_of_openings){
+                await db.collection('Application').updateOne({
+                    job_application_id: parseInt(req.params.application_id)
+                },{
+                    $set: {
+                        stage: updateStatus(application.stage),
+                        candidates_hired: application.candidates_hired + 1
+                }})
+                await db.collection('Jobs').updateOne({
+                    'data.job_id': application.job_id
+                },{
+                    $set:{
+                        'data.jobs_info.hired': application.candidates_hired + 1,
+                        'data.status': "Closed"
+                    }
+                })                
+            }else if(application.stage === "Offer"){
+                await db.collection('Application').updateOne({
+                    job_application_id: parseInt(req.params.application_id)
+                },{
+                    $set: {
+                        stage: updateStatus(application.stage),
+                        candidates_hired: application.candidates_hired + 1
+                }})
+                await db.collection('Jobs').updateOne({
+                    'data.job_id': application.job_id
+                },{
+                    $set:{
+                        'data.jobs_info.hired': application.candidates_hired + 1
+                    }
+                })
             }else{
-                const job_applied = candidate.data.offers.find(jobApplied => jobApplied.job_id === parseInt(req.params.job_id));
-                const allHired = job.data.jobs_info.hired === job.data.jobs_info.number_of_openings;
-                if(!job_applied){
-                    res.status(404).send({message: "Candidate has not applied for this job."});
-                }else if(allHired){
-                    res.status(404).send({message: "Hiring process is finished for this job."});
-                }else{
-                    const candidate_array = updateCandidateStatus(job.data.candidate_applied_info, parseInt(req.params.candidate_id));
-                    const countHired = countHiredCandidate(job.data.candidate_applied_info);
-                    const updated_job = await db.collection('Jobs').updateOne(
-                        {'data.job_id': parseInt(req.params.job_id)},
-                        {$set: {
-                            ...job,
-                            data:{
-                                ...job.data,
-                                hired: countHired,
-                                candidate_applied_info: candidate_array,
-                                updated_at: new Date()
-                            }
-                        }}
-                    );
-                    const job_array = updateJobStatus(candidate.data.offers, parseInt(req.params.job_id));
-                    const updated_candidate = await db.collection('Candidates').updateOne(
-                        {'data.candidate_id': parseInt(req.params.candidate_id)},{
-                            $set: {
-                                ...candidate,
-                                data:{
-                                    ...candidate.data,
-                                    offers: job_array,
-                                    updated_at: new Date()
-                                }
-                            }
-                        }
-                    );
-                    res.status(200).send({message: "Candidate got promoted for job successfully.", job: updated_job, candidate: updated_candidate});
-                }
-            }  
+                await db.collection('Application').updateOne({
+                    job_application_id: parseInt(req.params.application_id)
+                },{ 
+                    $set: { 
+                        stage: updateStatus(application.stage)
+                }})
+            }
+
+            res.status(200).send({message: "Candidate has been promoted to next stage."});
         }
     }catch(err){
         res.status(500).send(`Internal Server Error ${err}`);
@@ -155,54 +135,30 @@ exports.promote = async(req, res) => {
 exports.reject = async(req, res) => {
     try{
         const db = getDB();
-        const candidate = await db.collection('Candidates').findOne({'data.candidate_id': parseInt(req.params.candidate_id)});
-        if(!candidate){
-            res.status(404).send({message: "Candidate not found. Please check candidate ID."});
-        }else{
-            const job = await db.collection('Jobs').findOne({'data.job_id': parseInt(req.params.job_id)});
-            if(!job){
-                res.status(404).send({message: "Job not found. Please check job ID."});
-            }else{
-                const job_applied = candidate.data.offers.find(jobApplied => jobApplied.job_id === parseInt(req.params.job_id));
-                const allHired = job.data.jobs_info.hired === job.data.jobs_info.number_of_openings;
-                if(!job_applied){
-                    res.status(404).send({message: "Candidate has not applied for this job."});
-                }else if(allHired){
-                    res.status(404).send({message: "Hiring process is finished for this job."});
-                }else{
-                    const candidate_array = rejectCandidateStatus(job.data.candidate_applied_info, parseInt(req.params.candidate_id));
-                    const countHired = countHiredCandidate(job.data.candidate_applied_info);
-                    const updated_job = await db.collection('Jobs').updateOne(
-                        {'data.job_id': parseInt(req.params.job_id)},
-                        {$set: {
-                            ...job,
-                            data:{
-                                ...job.data,
-                                hired: countHired,
-                                candidate_applied_info: candidate_array,
-                                updated_at: new Date()
-                            }
-                        }}
-                    );
-                    const job_array = rejectJobStatus(candidate.data.offers, parseInt(req.params.job_id));
-                    const updated_candidate = await db.collection('Candidates').updateOne(
-                        {'data.candidate_id': parseInt(req.params.candidate_id)},{
-                            $set: {
-                                ...candidate,
-                                data:{
-                                    ...candidate.data,
-                                    offers: job_array,
-                                    updated_at: new Date()
-                                }
-                            }
-                        }
-                    );
-                    res.status(200).send({message: "Candidate got rejected for job successfully.", job: updated_job, candidate: updated_candidate});
-                }
-            }  
+        const application = await db.collection('Application').findOne({job_application_id: parseInt(req.params.application_id)});
+        if(!application){
+            res.status(404).send({message: "Application not found. Please check application ID."});
+        }else if(application.stage === "Rejected"){
+                res.status(404).send({message: "Candidate has already been rejected for this offer."});
+        }else if(application.stage === "Hired"){
+            res.status(404).send({message: "Hired candidates cannot be rejected"});
+        }else {
+            await db.collection('Application').updateOne({job_application_id: parseInt(req.params.application_id)}, { $set: { stage:  "Rejected"}});
+            res.status(200).send({message: "Candidate has been rejected for this offer."});
         }
     }catch(err){
         res.status(500).send(`Internal Server Error ${err}`);
     }       
 }
 
+exports.clear = async(req,res) => {
+    try{
+        const db = getDB();
+        await db.collection('Candidates').deleteMany({});
+        await db.collection('Jobs').deleteMany({});
+        await db.collection('Application').deleteMany({});
+        res.status(200).send({message: "deleted successfully"});
+    }catch(err){
+        res.status(500).send({message: `Internal Server Error! ${err}`});
+    }
+}

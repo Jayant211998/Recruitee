@@ -1,4 +1,4 @@
-const updateStatus = (status) => {
+exports.updateStatus = (status) => {
     if(status === "Applied"){
         return "Phone Interview"
     }else if(status === "Phone Interview"){
@@ -84,4 +84,36 @@ exports.rejectJobStatus = (arr, id) => {
         }
     })
     return updatedArr;
+}
+
+exports.getQuery = (parameter) => {
+    const query = {};
+    for(let key in parameter){
+        if( key === 'city'){
+            query['data.jobs_info.address.city'] =  parameter[key];
+        }if( key === 'state'){
+            query['data.jobs_info.address.state'] =  parameter[key];
+        }if( key === 'employment_type'){
+            query['data.jobs_info.employment_type'] =  parameter[key];
+        }if( key === 'title'){
+            query['data.jobs_info.title'] =  parameter[key];
+        }if( key === 'candidates_applied'){
+            const value = JSON.parse(parameter[key]);
+            query['data.candidates_applied'] = {$gte: value[0], $lte: value[1]};
+        }if( key === 'candidates_applied'){
+            const value = JSON.parse(parameter[key]);
+            query['data.jobs_info.number_of_openings'] = {$gte: value[0], $lte: value[1]};
+        }if( key === 'relevant_experience'){
+            const value = JSON.parse(parameter[key]);
+            query['data.jobs_info.relevent_experience_in_years'] = {$lte: value};
+        }if( key === 'salary'){
+            const value = JSON.parse(parameter[key]);
+            query['data.jobs_info.number_of_openings'] = {$gte: value[0], $lte: value[1]};
+        }if( key === 'created_after'){
+            query['data.created_at'] = {$gte: new Date(parameter[key])};
+        }if( key === 'remote'){
+            query['data.jobs_info.address.remote'] = JSON.parse(parameter[key]);
+        }
+    } 
+    return query;
 }
