@@ -1,40 +1,79 @@
 const jwt = require('jsonwebtoken');
 const getDB = require('../mongo-connect.js').getDB;
-
+const {keys} = require('./registration_keys.json')
 exports.register = async(req, res) => {
     try{
         const db = getDB();
         const existingUser = await db.collection('Users').findOne({email:req.body.email})
         const existingCompany = await db.collection('Companies').findOne({name:req.body.company})
-        if(!existingUser && !existingCompany){
-            const userID = Math.floor(100000 + Math.random() * 900000);
-            await db.collection('Users').insertOne({
-                user_id: userID,
-                username: req.body.username,
-                email: req.body.email,
-                password: req.body.password,
-                created_time: new Date(),
-                updated_time: new Date()
-            });
-            const companyID = Math.floor(100000 + Math.random() * 900000);
-            await db.collection('Companies').insertOne({
-                    company_id: companyID,
-                    name: req.body.company, 
-                    website: req.body.website,
-                    owner: {
-                        name: req.body.username,
-                        email: req.body.email, 
-                        id: userID
-                    }, 
-                    type: "default",
+        const keyCheck = keys.find(key => key === req.body.key);
+        console.log(req.body.key in keys,typeof req.body.key,typeof keys)
+        if(req.body.admin && keyCheck){    
+            if(!existingUser && !existingCompany){
+                const userID = Math.floor(100000 + Math.random() * 900000);
+                await db.collection('Users').insertOne({
+                    user_id: userID,
+                    username: req.body.username,
+                    email: req.body.email,
+                    password: req.body.password,
+                    admin: true,
                     created_time: new Date(),
                     updated_time: new Date()
-            });
-            res.status(200).send({message: "User registered successfully"});
-        }else if(existingCompany){
-            res.status(409).send({message: "Company with this name already exists"});
+                });
+                const companyID = Math.floor(100000 + Math.random() * 900000);
+                await db.collection('Companies').insertOne({
+                        company_id: companyID,
+                        name: req.body.company, 
+                        website: req.body.website,
+                        owner: {
+                            name: req.body.username,
+                            email: req.body.email, 
+                            id: userID
+                        }, 
+                        type: "default",
+                        created_time: new Date(),
+                        updated_time: new Date()
+                });
+                res.status(200).send({message: "User registered successfully"});
+            }else if(existingCompany){
+                res.status(409).send({message: "Company with this name already exists"});
+            }else{
+                res.status(409).send({message: "User already exists"});
+            }
+        }else if(req.body.admin && !keyCheck){
+            res.status(409).send({message: "Invalid key. Please contact admin."});
         }else{
-            res.status(409).send({message: "User already exists"});
+            if(!existingUser && !existingCompany){
+                const userID = Math.floor(100000 + Math.random() * 900000);
+                await db.collection('Users').insertOne({
+                    user_id: userID,
+                    username: req.body.username,
+                    email: req.body.email,
+                    password: req.body.password,
+                    admin: false,
+                    created_time: new Date(),
+                    updated_time: new Date()
+                });
+                const companyID = Math.floor(100000 + Math.random() * 900000);
+                await db.collection('Companies').insertOne({
+                        company_id: companyID,
+                        name: req.body.company, 
+                        website: req.body.website,
+                        owner: {
+                            name: req.body.username,
+                            email: req.body.email, 
+                            id: userID
+                        }, 
+                        type: "default",
+                        created_time: new Date(),
+                        updated_time: new Date()
+                });
+                res.status(200).send({message: "User registered successfully"});
+            }else if(existingCompany){
+                res.status(409).send({message: "Company with this name already exists"});
+            }else{
+                res.status(409).send({message: "User already exists"});
+            }
         }
     }catch(err){
         res.status(500).send({message: `Internal server error ${err}`});
@@ -47,7 +86,7 @@ exports.login = async(req, res) => {
         const existingUser = await db.collection('Users').findOne({email:req.body.email})
         if(existingUser){
             if(existingUser.password === req.body.password){
-                const token = jwt.sign(req.body, "secret", {expiresIn: "1h"});
+                const token = jwt.sign(existingUser, "secret", {expiresIn: "1h"});
                 res.status(200).send({message: "User logged in successfully", token: token, data: existingUser});
             }else{
                 res.status(401).send({message: "Invalid password"});
@@ -72,6 +111,29 @@ exports.verifyToken = async(req, res, next) => {
             if(existingUser){
                 req.user = existingUser;
                 next();
+            }else{
+                res.status(401).send({message: `Invalid token ${err}`});
+            }
+        }
+    }catch(err){
+        res.status(500).send({message: `Internal server error: Token got expired: ${err}`});
+    }
+}
+
+exports.verifyAdminToken = async(req, res, next) => {
+    try{
+        const token = req.headers.authorization;
+        if(!token){
+            res.status(401).send({message: "No token provided"});
+        }else{
+            const decoded = jwt.verify(token, "secret");
+            const db = getDB();
+            const existingUser = await db.collection('Users').findOne({email: decoded.email});
+            if(existingUser && existingUser.admin){
+                req.user = existingUser;
+                next();
+            }else if(existingUser){
+                res.status(401).send({message: "Unauthorized! Only admin can access this"});
             }else{
                 res.status(401).send({message: `Invalid token ${err}`});
             }
@@ -136,7 +198,7 @@ exports.verifyCompany = async(req, res, next) => {
     if(!existingCompany){
         res.status(404).send({message: "Company not found"});
     }else if(existingCompany.owner.id!== req.user.user_id){
-        res.status(401).send({message: "You are not authorized to perform this action"});
+        res.status(401).send({message: "You are not authorized to perform this action as you are not owner of this company."});
     }else{
         next();
     }

@@ -34,16 +34,16 @@ app.use(function (req, res, next) {
 app.post('/register', auth.register);
 app.post('/login', auth.login);
 app.get('/logout', auth.logout);
-app.get('/admin', auth.verifyToken, auth.admin);
-app.get('/companies', auth.verifyToken, auth.getCompanies);
-app.post('/companies', auth.verifyToken, auth.postCompanies);
+app.get('/admin', auth.verifyAdminToken, auth.admin);
+app.get('/companies', auth.verifyAdminToken, auth.getCompanies);
+app.post('/companies', auth.verifyAdminToken, auth.postCompanies);
 
 
 //Candidates
-app.get('/candidates', auth.verifyToken, candidate.getCandidates);
 app.post('/candidates', auth.verifyToken, candidate.postCandidates);
+app.get('/candidates', auth.verifyAdminToken, candidate.getCandidates);
 app.get('/candidate/:id', auth.verifyToken, candidate.getCandidateById);
-app.delete('/candidate/:id', auth.verifyToken, candidate.deleteCandidate);
+app.delete('/candidate/:id', auth.verifyAdminToken, candidate.deleteCandidate);
 app.put('/candidate/:id', auth.verifyToken, candidate.updateCandidate);
 app.post('/upload_resume/:id', auth.verifyToken, upload.single('file'),( req, res )=>{candidate.uploadResume(req,res,storage)});
 app.post('/upload_coverLetter/:id', auth.verifyToken, upload.single('file'),( req, res )=>{candidate.uploadCoverLetter(req,res,storage)});
@@ -51,19 +51,20 @@ app.post('/upload_image/:id', auth.verifyToken, upload.single('file'),( req, res
 
 
 // Job openings
-app.post('/company/:company_id', auth.verifyToken, auth.verifyCompany,jobs.postJobs);
+app.post('/company/:company_id', auth.verifyAdminToken, auth.verifyCompany,jobs.postJobs);
 app.get('/company/:company_id', auth.verifyToken, auth.verifyCompany, jobs.getJobs);
 app.get('/company/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.getJobById);
-app.put('/company/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.updateJobById);
-app.delete('/company/:company_id/job/:job_id', auth.verifyToken, auth.verifyCompany, jobs.deleteJob);
+app.put('/company/:company_id/job/:job_id', auth.verifyAdminToken, auth.verifyCompany, jobs.updateJobById);
+app.delete('/company/:company_id/job/:job_id', auth.verifyAdminToken, auth.verifyCompany, jobs.deleteJob);
 
 
 // Job Application
 app.post('/company/:company_id/job/:job_id/candidate/:candidate_id/apply', auth.verifyToken, auth.verifyCompany, apply.apply);
-app.get('/company/:company_id/job/:job_id/apply_info', auth.verifyToken, auth.verifyCompany, apply.applyJobInfo);
+app.get('/company/:company_id/job/:job_id/apply_info', auth.verifyAdminToken, auth.verifyCompany, apply.applyJobInfo);
 app.get('/company/:company_id/candidate/:candidate_id/apply_info', auth.verifyToken, auth.verifyCompany, apply.applyCandidateInfo);
-app.put('/company/:company_id/application/:application_id/promote', auth.verifyToken, auth.verifyCompany, apply.promote);
-app.put('/company/:company_id/application/:application_id/reject', auth.verifyToken, auth.verifyCompany, apply.reject);
+app.get('/company/:company_id/application/:application_id', auth.verifyAdminToken, auth.verifyCompany, apply.applicationInfo);
+app.put('/company/:company_id/application/:application_id/promote', auth.verifyAdminToken, auth.verifyCompany, apply.promote);
+app.put('/company/:company_id/application/:application_id/reject', auth.verifyAdminToken, auth.verifyCompany, apply.reject);
 
 
 mongoConnect(()=>{

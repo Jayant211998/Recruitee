@@ -1,5 +1,5 @@
 const getDB = require('../mongo-connect.js').getDB;
-const { getQuery } = require('./utils.js');
+const { getQuery } = require('../utils.js');
 
 
 exports.postJobs = async(req, res) => {

@@ -1,6 +1,6 @@
 const getDB = require('../mongo-connect.js').getDB;
 
-const { updateStatus, countHiredCandidate,rejectJobStatus, rejectCandidateStatus } = require('./utils.js');
+const { updateStatus, countHiredCandidate,rejectJobStatus, rejectCandidateStatus } = require('../utils.js');
 
 exports.apply = async(req, res) => {
     try{
@@ -25,8 +25,6 @@ exports.apply = async(req, res) => {
                         company_id: job.data.company_id,
                         job_id: parseInt(req.params.job_id),
                         job_title: job.data.jobs_info.title,
-                        candidates_hired: job.data.jobs_info.hired,
-                        number_of_openings: job.data.jobs_info.number_of_openings,
                         candidate_id: parseInt(req.params.candidate_id),
                         candidate_email: candidate.data.candidate_info.email,
                         candidate_name: candidate.data.candidate_info.name,
@@ -71,6 +69,20 @@ exports.applyCandidateInfo = async(req, res) => {
     }
 }
 
+exports.applicationInfo = async(req, res) => {
+    try{
+        const db = getDB();
+        const application = await db.collection('Application').findOne({job_application_id: parseInt(req.params.application_id)});
+        if(!application){
+            res.status(404).send({message: "Job application not found. Please check application ID."});
+        }else{
+            res.status(200).send({ data: application });
+        }
+    }catch(err){
+        res.status(500).send(`Internal Server Error ${err}`);
+    }
+}
+
 exports.promote = async(req, res) => {
     try{
         const db = getDB();
@@ -85,20 +97,14 @@ exports.promote = async(req, res) => {
         }else if(job.data.status === "Closed"){
             res.status(404).send({message: "Hiring process is finished for this job."});
         }else {
-            if(application.stage === "Offer" && application.candidates_hired + 1 === application.number_of_openings){
-                await db.collection('Application').updateOne({
-                    job_application_id: parseInt(req.params.application_id)
-                },{
-                    $set: {
-                        stage: updateStatus(application.stage),
-                        candidates_hired: application.candidates_hired + 1
-                }})
+            if(application.stage === "Offer" && job.data.jobs_info.hired + 1 === job.data.jobs_info.hired.number_of_openings){
                 await db.collection('Jobs').updateOne({
                     'data.job_id': application.job_id
                 },{
                     $set:{
                         'data.jobs_info.hired': application.candidates_hired + 1,
-                        'data.status': "Closed"
+                        'data.status': "Closed",
+                        'data.updated_at': new Date()                        
                     }
                 })                
             }else if(application.stage === "Offer"){
@@ -107,24 +113,23 @@ exports.promote = async(req, res) => {
                 },{
                     $set: {
                         stage: updateStatus(application.stage),
-                        candidates_hired: application.candidates_hired + 1
                 }})
                 await db.collection('Jobs').updateOne({
                     'data.job_id': application.job_id
                 },{
                     $set:{
-                        'data.jobs_info.hired': application.candidates_hired + 1
+                        'data.jobs_info.hired': application.candidates_hired + 1,
+                        'data.updated_at': new Date()                        
                     }
                 })
-            }else{
-                await db.collection('Application').updateOne({
-                    job_application_id: parseInt(req.params.application_id)
-                },{ 
-                    $set: { 
-                        stage: updateStatus(application.stage)
-                }})
             }
-
+            await db.collection('Application').updateOne({
+                job_application_id: parseInt(req.params.application_id)
+            },{ 
+                $set: {
+                    stage: updateStatus(application.stage),
+                    updated_at: new Date()
+            }})
             res.status(200).send({message: "Candidate has been promoted to next stage."});
         }
     }catch(err){
@@ -143,7 +148,7 @@ exports.reject = async(req, res) => {
         }else if(application.stage === "Hired"){
             res.status(404).send({message: "Hired candidates cannot be rejected"});
         }else {
-            await db.collection('Application').updateOne({job_application_id: parseInt(req.params.application_id)}, { $set: { stage:  "Rejected"}});
+            await db.collection('Application').updateOne({job_application_id: parseInt(req.params.application_id)}, { $set: { stage:  "Rejected", updated_at: new Date() }});
             res.status(200).send({message: "Candidate has been rejected for this offer."});
         }
     }catch(err){

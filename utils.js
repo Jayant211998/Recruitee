@@ -113,7 +113,16 @@ exports.getQuery = (parameter) => {
             query['data.created_at'] = {$gte: new Date(parameter[key])};
         }if( key === 'remote'){
             query['data.jobs_info.address.remote'] = JSON.parse(parameter[key]);
+        }if( key === 'status'){
+            query['data.status'] = JSON.parse(parameter[key]);
+        }if( key === 'name'){
+            query['data.candidate_info.name'] = parameter[key];
+        }if( key === 'email'){
+            query['data.candidate_info.email'] = parameter[key];
+        }if( key === 'phone'){
+            query['data.candidate_info.phone'] = parameter[key];
         }
+
     } 
     return query;
 }

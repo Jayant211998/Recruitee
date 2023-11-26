@@ -1,5 +1,7 @@
 const getDB = require('../mongo-connect.js').getDB;
 const { ref, uploadBytesResumable, getDownloadURL } = require('firebase/storage');
+const { getQuery } = require('../utils.js');
+
 
 const { initializeApp } = require('firebase/app');
 const { configuration } = require('../config/firebase_config.js');
@@ -9,7 +11,8 @@ initializeApp(configuration);
 exports.getCandidates = async(req, res) => {
    try {
         const db = getDB();
-        const candidates = await db.collection('Candidates').find({}).toArray();
+        const query = getQuery(req.query);
+        const candidates = await db.collection('Candidates').find(query).toArray();
         res.status(200).send({message: "All candidates retrieved successfully", candidates: candidates});
     }catch(err){
         res.status(500).send({message: `Internal Server Error! ${err}`});
